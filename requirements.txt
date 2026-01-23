@@ -1,0 +1,15 @@
+# Core ML 
+torch
+torch-geometric
+tqdm
+
+# Chemistry
+rdkit
+numpy
+pandas
+matplotlib
+scikit-learn
+
+# Quantum Computing
+pennylane
+pennylane-lightning

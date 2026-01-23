@@ -1,0 +1,4 @@
+data/qm9
+__pycache__/
+# model weights
+*.pt

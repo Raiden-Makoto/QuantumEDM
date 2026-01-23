@@ -1,11 +1,9 @@
-import torch
-import torch.nn as nn
-from .qegnn import QuantumEdgeUpdate
+import torch # type: ignore
+import torch.nn as nn # type: ignore
+from .qegnn import QuantumEdgeUpdate # type: ignore
 import math # Needed for math.pi
 
 class EGNNLayer(nn.Module):
-    # NOTE: We agreed on 6 qubits in the last step. 
-    # Ensure this matches your QuantumEdgeUpdate definition!
     def __init__(self, hidden_dim, n_qubits=6): 
         super().__init__()
         self.hidden_dim = hidden_dim

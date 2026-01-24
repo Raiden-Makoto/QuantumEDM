@@ -10,7 +10,7 @@ import os
 import matplotlib.pyplot as plt # type: ignore
 
 # --- Configuration ---
-DEVICE = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+DEVICE = 'cpu' #torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
 BATCH_SIZE = 64
 LR = 1e-4
 EPOCHS = 25
@@ -18,14 +18,14 @@ TIMESTEPS = 2500  # Number of diffusion steps
 CHECKPOINT_PATH = "best_model.pt"
 EARLY_STOPPING_PATIENCE = 5  # Stop training after 5 epochs without improvement
 
-def train(epochs=EPOCHS, resume_from=None):
+def train(epochs=EPOCHS, resume_from=None, dataset_percent=None):
     print(f"Training on {DEVICE}...")
     
-    loader = get_data(batch_size=BATCH_SIZE)
+    loader = get_data(batch_size=BATCH_SIZE, dataset_percent=dataset_percent)
     
     # num_atom_types=10 covers QM9 (H=1, C=6, N=7, O=8, F=9)
-    # Using quantum version with n_qubits=6
-    model = DenoisingEGNN(num_atom_types=10, hidden_dim=128, num_layers=4, n_qubits=6).to(DEVICE)
+    # Using quantum version with n_qubits=4
+    model = DenoisingEGNN(num_atom_types=10, hidden_dim=128, num_layers=3, n_qubits=4).to(DEVICE)
     optimizer = Adam(model.parameters(), lr=LR)
     scheduler = DiffusionSchedule(timesteps=TIMESTEPS, device=DEVICE)
     
@@ -197,6 +197,10 @@ if __name__ == "__main__":
         '--resume', type=str, nargs='?', const=CHECKPOINT_PATH, default=None,
         help=f'Resume training from checkpoint. If no path provided, uses {CHECKPOINT_PATH} (default: None)'
     )
+    parser.add_argument(
+        '--dataset-percent', type=float, default=None,
+        help='Percentage of training dataset to use (0.0-1.0). If not specified, uses full dataset. Example: 0.01 for 1%%'
+    )
     args = parser.parse_args()
     
-    train(epochs=args.epochs, resume_from=args.resume)
+    train(epochs=args.epochs, resume_from=args.resume, dataset_percent=args.dataset_percent)

@@ -4,7 +4,7 @@ from .qegnn import QuantumEdgeUpdate # type: ignore
 import math # Needed for math.pi
 
 class EGNNLayer(nn.Module):
-    def __init__(self, hidden_dim, n_qubits=6): 
+    def __init__(self, hidden_dim, n_qubits=4): 
         super().__init__()
         self.hidden_dim = hidden_dim
         
@@ -18,6 +18,13 @@ class EGNNLayer(nn.Module):
         self.pre_quantum = nn.Linear(hidden_dim, n_qubits) 
         self.coord_quantum = QuantumEdgeUpdate(n_qubits=n_qubits, n_layers=2)
         self.post_quantum = nn.Linear(1, 1) 
+        
+        # === THE FIX: Sedate the Quantum Output ===
+        # Initialize weights to effectively zero (1e-4)
+        # This prevents the "Explosion" at Epoch 0
+        nn.init.uniform_(self.post_quantum.weight, -1e-4, 1e-4)
+        nn.init.zeros_(self.post_quantum.bias)
+        # ==========================================
         # ----------------------
         
         self.node_mlp = nn.Sequential(

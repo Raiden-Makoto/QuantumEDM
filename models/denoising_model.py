@@ -3,7 +3,7 @@ import torch.nn as nn # type: ignore
 from layers.egg import EGNNLayer # type: ignore
 
 class DenoisingEGNN(nn.Module):
-    def __init__(self, num_atom_types=10, hidden_dim=128, num_layers=4, n_qubits=6):
+    def __init__(self, num_atom_types=10, hidden_dim=128, num_layers=4, n_qubits=4):
         super().__init__()
         
         # 1. Atom Embedding: Maps integer (e.g., Carbon=6) to Vector [128]

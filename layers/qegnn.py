@@ -3,7 +3,7 @@ import torch.nn as nn # type: ignore
 import pennylane as qml # type: ignore
 
 class QuantumEdgeUpdate(nn.Module):
-    def __init__(self, n_qubits=5, n_layers=2):
+    def __init__(self, n_qubits=4, n_layers=2):
         super().__init__()
         self.n_qubits = n_qubits
         self.dev = qml.device("lightning.qubit", wires=n_qubits)
@@ -22,5 +22,5 @@ class QuantumEdgeUpdate(nn.Module):
 
 if __name__ == "__main__":
     layer = QuantumEdgeUpdate()
-    noise = torch.randn(5)
+    noise = torch.randn(4)
     print(layer(noise))

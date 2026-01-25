@@ -24,19 +24,19 @@ def get_plot_path(use_quantum):
     """Get plot path based on model type."""
     return "training_loss_curve_quantum.png" if use_quantum else "training_loss_curve_classical.png"
 
-def train(epochs=EPOCHS, resume_from=None, dataset_percent=None, 
-          use_quantum=True, n_qubits=4, num_layers=3, validation_split=None):
+def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05, 
+          use_quantum=True, n_qubits=4, num_layers=3, validation_split=0.2):
     """
     Train DenoisingEGNN model.
     
     Args:
         epochs: Number of epochs to train
         resume_from: Path to checkpoint to resume from
-        dataset_percent: Percentage of training dataset to use (0.0-1.0)
+        dataset_percent: Percentage of full dataset to sample (default: 0.05 = 5%)
         use_quantum: If True, use quantum layers; if False, use classical layers
         n_qubits: Number of qubits for quantum layers (only used if use_quantum=True)
         num_layers: Number of EGNN layers
-        validation_split: If specified (0.0-1.0), use validation set for early stopping (applies to both quantum and classical)
+        validation_split: Validation split ratio (default: 0.2 = 20% validation, 80% training). Set to None to disable.
     """
     # Force CPU device for quantum models (quantum circuits don't work well on MPS)
     if use_quantum:
@@ -96,16 +96,18 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=None,
     print(f"Checkpoint path: {CHECKPOINT_PATH}")
     print(f"Plot path: {PLOT_PATH}")
     
-    # Get data loaders (validation_split works for both quantum and classical)
-    if validation_split is not None:
+    # Get data loaders (default: 5% dataset sample with seed 42, 80/20 train/val split)
+    # validation_split=None means disable validation, otherwise use the provided value (default: 0.2)
+    if validation_split is None:
+        result = get_data(batch_size=BATCH_SIZE, dataset_percent=dataset_percent, validation_split=0)
+        train_loader = result
+        val_loader = None
+    else:
         train_loader, val_loader = get_data(
             batch_size=BATCH_SIZE, 
             dataset_percent=dataset_percent,
             validation_split=validation_split
         )
-    else:
-        train_loader = get_data(batch_size=BATCH_SIZE, dataset_percent=dataset_percent)
-        val_loader = None
     
     # Create model
     # num_atom_types=10 covers QM9 (H=1, C=6, N=7, O=8, F=9)
@@ -364,8 +366,8 @@ if __name__ == "__main__":
         help='Resume training from checkpoint. If no path provided, auto-detects based on model type (quantum: best_model_quantum.pt, classical: best_model_classical.pt). Can also specify explicit path. (default: None)'
     )
     parser.add_argument(
-        '--dataset-percent', type=float, default=None,
-        help='Percentage of training dataset to use (0.0-1.0). If not specified, uses full dataset. Example: 0.01 for 1%%'
+        '--dataset-percent', type=float, default=0.05,
+        help='Percentage of full dataset to sample BEFORE train/val split (default: 0.05 = 5%%, with seed 42)'
     )
     parser.add_argument(
         '--classical', action='store_true',
@@ -380,10 +382,20 @@ if __name__ == "__main__":
         help='Number of EGNN layers (default: 3)'
     )
     parser.add_argument(
-        '--validation-split', type=float, default=None,
-        help='Validation split ratio (0.0-1.0). If specified, enables validation and early stopping based on validation loss. Works for both quantum and classical models (default: None)'
+        '--validation-split', type=float, default=0.2,
+        help='Validation split ratio (default: 0.2 = 20%% validation, 80%% training). Set to 0 to disable validation. Uses seed 42 for reproducibility.'
+    )
+    parser.add_argument(
+        '--no-validation', action='store_true',
+        help='Disable validation split (equivalent to --validation-split 0)'
     )
     args = parser.parse_args()
+    
+    # Handle --no-validation flag or validation_split=0
+    if args.no_validation or args.validation_split == 0:
+        validation_split = None
+    else:
+        validation_split = args.validation_split
     
     train(
         epochs=args.epochs, 
@@ -392,5 +404,5 @@ if __name__ == "__main__":
         use_quantum=not args.classical,
         n_qubits=args.n_qubits,
         num_layers=args.num_layers,
-        validation_split=args.validation_split
+        validation_split=validation_split
     )

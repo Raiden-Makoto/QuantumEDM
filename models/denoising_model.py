@@ -1,22 +1,26 @@
 import torch # type: ignore
 import torch.nn as nn # type: ignore
 import math # type: ignore
-from layers.egg import EGNNLayer as QuantumEGNNLayer # type: ignore
-from layers.egnn import EGNNLayer # type: ignore
+from layers import ClassicalEGNNLayer, QuantumEGNNLayer # type: ignore
 
 class DenoisingEGNN(nn.Module):
     """
-    Unified Denoising EGNN model supporting both quantum and classical layers.
+    Denoising EGNN model with two modes:
+    
+    Mode 1 (use_quantum=False): All classical
+        [Classical, Classical, Classical, Classical] - 4 layers
+    
+    Mode 2 (use_quantum=True): Sandwich architecture
+        [Classical, Classical, Classical, Quantum] - 3 classical + 1 quantum
     
     Args:
         num_atom_types: Number of atom types (default: 10 for QM9)
         hidden_dim: Hidden dimension size (default: 128)
-        num_layers: Number of EGNN layers (default: 4)
-        use_quantum: If True, use quantum layers; if False, use classical layers (default: True)
-        n_qubits: Number of qubits for quantum layers (default: 4, only used if use_quantum=True)
+        use_quantum: If True, use 3 classical + 1 quantum; if False, use all classical (default: True)
+        n_qubits: Number of qubits for quantum layer (default: 4, only used if use_quantum=True)
         timesteps: Number of diffusion timesteps (default: 2500, only used if use_quantum=False for timestep embedding)
     """
-    def __init__(self, num_atom_types=10, hidden_dim=128, num_layers=4, 
+    def __init__(self, num_atom_types=10, hidden_dim=128, 
                  use_quantum=True, n_qubits=4, timesteps=2500):
         super().__init__()
         self.hidden_dim = hidden_dim
@@ -32,16 +36,21 @@ class DenoisingEGNN(nn.Module):
                 nn.Linear(hidden_dim, hidden_dim)
             )
         
-        # Stack of layers (quantum or classical)
+        # Two modes: All classical OR 3 classical + 1 quantum (always 4 layers total)
+        self.layers = nn.ModuleList()
+        
         if use_quantum:
-            self.layers = nn.ModuleList([
-                QuantumEGNNLayer(hidden_dim, n_qubits=n_qubits) 
-                for _ in range(num_layers)
-            ])
+            # Mode 2: 3 classical + 1 quantum
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            self.layers.append(QuantumEGNNLayer(hidden_dim, n_qubits=n_qubits))
         else:
-            self.layers = nn.ModuleList([
-                EGNNLayer(hidden_dim) for _ in range(num_layers)
-            ])
+            # Mode 1: All classical (4 layers)
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
     
     def timestep_embedding(self, timesteps):
         """

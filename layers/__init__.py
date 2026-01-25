@@ -1,8 +1,8 @@
 """
 EGNN (E(n) Equivariant Graph Neural Network) layers
 """
-from .egnn import EGNNLayer
-from .egg import EGNNLayer as QuantumEGNNLayer
-from .qegnn import QuantumEdgeUpdate
+from .edgeupdate import QuantumEdgeUpdate
+from .cegnn import ClassicalEGNNLayer
+from .qegnn import QuantumEGNNLayer
 
-__all__ = ['EGNNLayer', 'QuantumEGNNLayer', 'QuantumEdgeUpdate']
+__all__ = ['ClassicalEGNNLayer', 'QuantumEGNNLayer', 'QuantumEdgeUpdate']

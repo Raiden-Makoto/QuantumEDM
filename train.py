@@ -25,7 +25,7 @@ def get_plot_path(use_quantum):
     return "training_loss_curve_quantum.png" if use_quantum else "training_loss_curve_classical.png"
 
 def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05, 
-          use_quantum=True, n_qubits=4, num_layers=3, validation_split=0.2):
+          use_quantum=True, n_qubits=4, validation_split=0.2):
     """
     Train DenoisingEGNN model.
     
@@ -33,9 +33,8 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
         epochs: Number of epochs to train
         resume_from: Path to checkpoint to resume from
         dataset_percent: Percentage of full dataset to sample (default: 0.05 = 5%)
-        use_quantum: If True, use quantum layers; if False, use classical layers
-        n_qubits: Number of qubits for quantum layers (only used if use_quantum=True)
-        num_layers: Number of EGNN layers
+        use_quantum: If True, use 3 classical + 1 quantum; if False, use all classical
+        n_qubits: Number of qubits for quantum layer (only used if use_quantum=True)
         validation_split: Validation split ratio (default: 0.2 = 20% validation, 80% training). Set to None to disable.
     """
     # Force CPU device for quantum models (quantum circuits don't work well on MPS)
@@ -111,11 +110,11 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
     
     # Create model
     # num_atom_types=10 covers QM9 (H=1, C=6, N=7, O=8, F=9)
+    # Two modes: All classical (4 layers) OR 3 classical + 1 quantum (4 layers)
     if use_quantum:
         model = DenoisingEGNN(
             num_atom_types=10, 
             hidden_dim=128, 
-            num_layers=num_layers, 
             use_quantum=True,
             n_qubits=n_qubits
         ).to(DEVICE)
@@ -123,7 +122,6 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
         model = DenoisingEGNN(
             num_atom_types=10, 
             hidden_dim=128, 
-            num_layers=num_layers, 
             use_quantum=False,
             timesteps=TIMESTEPS
         ).to(DEVICE)
@@ -286,7 +284,6 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
                 'best_loss': best_loss,
                 'use_quantum': use_quantum,
                 'n_qubits': n_qubits if use_quantum else None,
-                'num_layers': num_layers,
             }
             torch.save(checkpoint, CHECKPOINT_PATH)
             if avg_val_loss is not None:
@@ -378,10 +375,6 @@ if __name__ == "__main__":
         help='Number of qubits for quantum layers (default: 4, only used if --classical is not set)'
     )
     parser.add_argument(
-        '--num-layers', type=int, default=3,
-        help='Number of EGNN layers (default: 3)'
-    )
-    parser.add_argument(
         '--validation-split', type=float, default=0.2,
         help='Validation split ratio (default: 0.2 = 20%% validation, 80%% training). Set to 0 to disable validation. Uses seed 42 for reproducibility.'
     )
@@ -403,6 +396,5 @@ if __name__ == "__main__":
         dataset_percent=args.dataset_percent,
         use_quantum=not args.classical,
         n_qubits=args.n_qubits,
-        num_layers=args.num_layers,
         validation_split=validation_split
     )

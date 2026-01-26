@@ -1,7 +1,7 @@
 import torch # type: ignore
 import torch.nn as nn # type: ignore
 import math # type: ignore
-from layers import ClassicalEGNNLayer, QuantumEGNNLayer # type: ignore
+from layers import ClassicalEGNNLayer, QuantumEGNNLayer, HybridDeepAttentionLayer # type: ignore
 
 class DenoisingEGNN(nn.Module):
     """

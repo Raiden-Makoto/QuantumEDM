@@ -98,26 +98,51 @@ def plot_molecule(coords, path: str='generated_molecule.png'):
         path: Output path for the plot (default: 'generated_molecule.png')
     """
     full_path = os.path.join(project_root, path)
-    fig = plt.figure(figsize=(8, 8))
+    fig = plt.figure(figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
     
-    # Plot atoms
-    ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], s=100, c='red', alpha=0.6)
+    num_atoms = coords.shape[0]
+    
+    # Plot atoms with labels to ensure all are visible
+    ax.scatter(coords[:, 0], coords[:, 1], coords[:, 2], s=200, c='red', alpha=0.8, edgecolors='black', linewidths=1.5)
+    
+    # Label each atom with its index to verify all are plotted
+    for i in range(num_atoms):
+        ax.text(coords[i, 0], coords[i, 1], coords[i, 2], f'  {i}', fontsize=10, color='blue')
     
     # Draw "bonds" (simple distance heuristic) to see structure
     # If two atoms are closer than 1.7 Angstroms, draw a line
-    num_atoms = coords.shape[0]
     for i in range(num_atoms):
         for j in range(i + 1, num_atoms):
             dist = np.linalg.norm(coords[i] - coords[j])
             if dist < 1.7:  # Typical bond length threshold ~1.5 - 1.7 Angstroms
                 ax.plot([coords[i, 0], coords[j, 0]], 
                         [coords[i, 1], coords[j, 1]], 
-                        [coords[i, 2], coords[j, 2]], c='black')
+                        [coords[i, 2], coords[j, 2]], c='black', linewidth=2)
 
-    ax.set_title("Generated Molecule Structure")
-    plt.savefig(full_path)
+    # Set equal aspect ratio and better viewing angle
+    ax.set_xlabel('X (Angstroms)', fontsize=10)
+    ax.set_ylabel('Y (Angstroms)', fontsize=10)
+    ax.set_zlabel('Z (Angstroms)', fontsize=10)
+    ax.set_title(f"Generated Molecule Structure ({num_atoms} atoms)", fontsize=12, fontweight='bold')
+    
+    # Set equal aspect ratio to prevent distortion
+    max_range = np.array([coords[:, 0].max() - coords[:, 0].min(),
+                          coords[:, 1].max() - coords[:, 1].min(),
+                          coords[:, 2].max() - coords[:, 2].min()]).max() / 2.0
+    mid_x = (coords[:, 0].max() + coords[:, 0].min()) * 0.5
+    mid_y = (coords[:, 1].max() + coords[:, 1].min()) * 0.5
+    mid_z = (coords[:, 2].max() + coords[:, 2].min()) * 0.5
+    ax.set_xlim(mid_x - max_range, mid_x + max_range)
+    ax.set_ylim(mid_y - max_range, mid_y + max_range)
+    ax.set_zlim(mid_z - max_range, mid_z + max_range)
+    
+    # Set a good viewing angle to see all atoms
+    ax.view_init(elev=20, azim=45)
+    
+    plt.savefig(full_path, dpi=150, bbox_inches='tight')
     plt.close()
+    
     return full_path
 
 if __name__ == "__main__":

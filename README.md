@@ -46,7 +46,7 @@ To maximize quantum utility while minimizing simulation cost, we developed a hyb
 
 ## 4. Experiments & Benchmarks
 
-We conducted a "Pound-for-Pound" showdown. To ensure fairness, the classical control model was "nerfed" to have the exact same bottleneck width (4 neurons) as the quantum circuit (4 qubits).
+We conducted a "band-for-band" showdown. To ensure fairness, the classical control model was "nerfed" to have the exact same bottleneck width (4 neurons) as the quantum circuit (4 qubits).
 
 | Model Architecture | Parameters (Coord Layer) | Final MSE Loss | Convergence (Epochs) | Result |
 | :--- | :--- | :--- | :--- | :--- |

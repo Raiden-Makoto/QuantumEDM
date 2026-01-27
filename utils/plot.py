@@ -11,7 +11,7 @@ if project_root not in sys.path:
 
 from utils.diffusion_scheduler import DiffusionSchedule
 from utils.sampling import sample_molecule
-from models.denoising_model import DenoisingEGNN
+from models import ClassicalEDM, QuantumEDM
 
 def plot_molecule(coords, path: str='generated_molecule.png'):
     """
@@ -183,19 +183,20 @@ if __name__ == "__main__":
         model_type = 'quantum' if use_quantum else 'classical'
         args.output = f'generated_molecule_{model_type}.png'
     
-    # Load model (simplified: always 4 layers, either all classical or 3 classical + 1 quantum)
+    # Load model
     if use_quantum:
-        model = DenoisingEGNN(
+        model = QuantumEDM(
             num_atom_types=10, 
             hidden_dim=128, 
-            use_quantum=True, 
-            n_qubits=checkpoint.get('n_qubits', 4)
+            num_layers=4,
+            n_qubits=checkpoint.get('n_qubits', 4),
+            timesteps=2500
         ).to(DEVICE)
     else:
-        model = DenoisingEGNN(
+        model = ClassicalEDM(
             num_atom_types=10, 
             hidden_dim=128, 
-            use_quantum=False, 
+            num_layers=4,
             timesteps=2500
         ).to(DEVICE)
     

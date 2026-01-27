@@ -1,7 +1,7 @@
 import torch # type: ignore
 import torch.nn as nn # type: ignore
 import math # type: ignore
-from layers import HybridDeepAttentionLayer # type: ignore
+from layers import ClassicalEGNNLayer, HybridDeepAttentionLayer # type: ignore
 
 class QuantumEDM(nn.Module):
     def __init__(self, num_atom_types=10, hidden_dim=128, num_layers=4, n_qubits=4, timesteps=2500):
@@ -17,11 +17,17 @@ class QuantumEDM(nn.Module):
             nn.Linear(hidden_dim, hidden_dim)
         )
         
-        # Use the new Deep Attention Layer
-        self.layers = nn.ModuleList([
-            HybridDeepAttentionLayer(hidden_dim, n_qubits=n_qubits)
-            for _ in range(num_layers)
-        ])
+        # --- THE SANDWICH STACK ---
+        self.layers = nn.ModuleList()
+        
+        # Layers 1-3: CLASSICAL (Fast Feature Extraction)
+        # These build up complex features quickly.
+        for _ in range(num_layers - 1):
+            self.layers.append(ClassicalEGNNLayer(hidden_dim))
+            
+        # Layer 4: QUANTUM (The Bottleneck Brain)
+        # Uses Data Re-uploading AND Attention to make the final decision.
+        self.layers.append(HybridDeepAttentionLayer(hidden_dim, n_qubits=n_qubits))
     
     def timestep_embedding(self, timesteps):
         """

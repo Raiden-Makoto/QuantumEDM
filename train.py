@@ -2,7 +2,7 @@ import torch # type: ignore
 import torch.nn.functional as F # type: ignore
 from torch.optim import Adam # type: ignore
 from data.data_loader import get_data
-from models.denoising_model import DenoisingEGNN
+from models import ClassicalEDM, QuantumEDM
 from utils.diffusion_scheduler import DiffusionSchedule
 from tqdm import tqdm # type: ignore
 import argparse
@@ -27,14 +27,14 @@ def get_plot_path(use_quantum):
 def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05, 
           use_quantum=True, n_qubits=4, validation_split=0.2):
     """
-    Train DenoisingEGNN model.
+    Train EDM model (Classical or Quantum).
     
     Args:
         epochs: Number of epochs to train
         resume_from: Path to checkpoint to resume from
         dataset_percent: Percentage of full dataset to sample (default: 0.05 = 5%)
-        use_quantum: If True, use 3 classical + 1 quantum; if False, use all classical
-        n_qubits: Number of qubits for quantum layer (only used if use_quantum=True)
+        use_quantum: If True, use QuantumEDM; if False, use ClassicalEDM
+        n_qubits: Number of qubits for quantum model (only used if use_quantum=True)
         validation_split: Validation split ratio (default: 0.2 = 20% validation, 80% training). Set to None to disable.
     """
     # Force CPU device for quantum models (quantum circuits don't work well on MPS)
@@ -85,6 +85,13 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
                 print("Quantum model detected: forcing CPU device (quantum circuits require CPU)")
             else:
                 DEVICE = torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
+        # Extract n_qubits from checkpoint if available (for quantum models)
+        if use_quantum and 'n_qubits' in checkpoint:
+            checkpoint_n_qubits = checkpoint.get('n_qubits')
+            if checkpoint_n_qubits is not None and checkpoint_n_qubits != n_qubits:
+                print(f"Warning: Checkpoint was trained with {checkpoint_n_qubits} qubits, but --n-qubits={n_qubits} was specified.")
+                print(f"Using checkpoint's n_qubits: {checkpoint_n_qubits}")
+                n_qubits = checkpoint_n_qubits
     
     # Determine checkpoint and plot paths based on final model type
     CHECKPOINT_PATH = get_checkpoint_path(use_quantum)
@@ -110,19 +117,19 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
     
     # Create model
     # num_atom_types=10 covers QM9 (H=1, C=6, N=7, O=8, F=9)
-    # Two modes: All classical (4 layers) OR 3 classical + 1 quantum (4 layers)
     if use_quantum:
-        model = DenoisingEGNN(
+        model = QuantumEDM(
             num_atom_types=10, 
             hidden_dim=128, 
-            use_quantum=True,
-            n_qubits=n_qubits
+            num_layers=4,
+            n_qubits=n_qubits,
+            timesteps=TIMESTEPS
         ).to(DEVICE)
     else:
-        model = DenoisingEGNN(
+        model = ClassicalEDM(
             num_atom_types=10, 
             hidden_dim=128, 
-            use_quantum=False,
+            num_layers=4,
             timesteps=TIMESTEPS
         ).to(DEVICE)
     
@@ -194,10 +201,8 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
             
             # 4. Predict Noise (Reverse Process)
             optimizer.zero_grad()
-            if use_quantum:
-                epsilon_pred = model(batch.z, x_t, batch.edge_index)
-            else:
-                epsilon_pred = model(batch.z, x_t, batch.edge_index, t_per_node)
+            # Both models now require timestep parameter
+            epsilon_pred = model(batch.z, x_t, batch.edge_index, t_per_node)
             
             # 5. Loss & Backprop
             loss = F.mse_loss(epsilon_pred, epsilon)
@@ -238,10 +243,8 @@ def train(epochs=EPOCHS, resume_from=None, dataset_percent=0.05,
                     x_t = sqrt_alpha * x_0 + sqrt_one_minus * epsilon
                     
                     # Predict noise
-                    if use_quantum:
-                        epsilon_pred = model(val_batch.z, x_t, val_batch.edge_index)
-                    else:
-                        epsilon_pred = model(val_batch.z, x_t, val_batch.edge_index, t_per_node)
+                    # Both models now require timestep parameter
+                    epsilon_pred = model(val_batch.z, x_t, val_batch.edge_index, t_per_node)
                     loss = F.mse_loss(epsilon_pred, epsilon)
                     val_loss += loss.item()
                     val_batches += 1

@@ -8,7 +8,7 @@ project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
-from models.denoising_model import DenoisingEGNN
+from models import ClassicalEDM, QuantumEDM
 from utils.diffusion_scheduler import DiffusionSchedule
 import matplotlib.pyplot as plt # type: ignore
 
@@ -18,7 +18,7 @@ def sample_molecule(model, scheduler, n_nodes, atom_types=None, n_dim=3, device=
     Sample a molecule using the trained diffusion model.
     
     Args:
-        model: Trained DenoisingEGNN model
+        model: Trained ClassicalEDM or QuantumEDM model
         scheduler: DiffusionSchedule instance (provides betas and alphas_cumprod)
         n_nodes: Number of atoms in the molecule
         atom_types: Tensor of atom type indices (default: all Carbon = 6)
@@ -63,14 +63,9 @@ def sample_molecule(model, scheduler, n_nodes, atom_types=None, n_dim=3, device=
         beta = betas[i]
         
         # Predict the noise using the EGNN model
-        # Check if model is quantum (no timestep needed) or classical (needs timestep)
-        if model.use_quantum:
-            # Quantum model without timestep embedding
-            predicted_noise = model(atom_types, x, edge_index)
-        else:
-            # Classical model with timestep embedding
-            t = torch.full((n_nodes,), i, device=device, dtype=torch.long)
-            predicted_noise = model(atom_types, x, edge_index, t)
+        # Both models now require timestep parameter
+        t = torch.full((n_nodes,), i, device=device, dtype=torch.long)
+        predicted_noise = model(atom_types, x, edge_index, t)
         
         # 6. The Denoising Step (Standard DDPM update)
         # x_{t-1} = (1/sqrt(alpha)) * (x_t - (beta/sqrt(1-alpha_hat)) * predicted_noise)
@@ -257,19 +252,20 @@ if __name__ == "__main__":
         model_type = 'quantum' if use_quantum else 'classical'
         args.output = f'generated_molecule_{model_type}.png'
     
-    # Load model (simplified: always 4 layers, either all classical or 3 classical + 1 quantum)
+    # Load model
     if use_quantum:
-        model = DenoisingEGNN(
+        model = QuantumEDM(
             num_atom_types=10, 
             hidden_dim=128, 
-            use_quantum=True, 
-            n_qubits=checkpoint.get('n_qubits', 4)
+            num_layers=4,
+            n_qubits=checkpoint.get('n_qubits', 4),
+            timesteps=2500
         ).to(DEVICE)
     else:
-        model = DenoisingEGNN(
+        model = ClassicalEDM(
             num_atom_types=10, 
             hidden_dim=128, 
-            use_quantum=False, 
+            num_layers=4,
             timesteps=2500
         ).to(DEVICE)
     
